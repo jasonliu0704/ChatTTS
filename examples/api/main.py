@@ -2,6 +2,8 @@ import io
 import os
 import sys
 import zipfile
+import wave
+import numpy as np
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
@@ -19,6 +21,8 @@ import ChatTTS
 
 from tools.audio import pcm_arr_to_mp3_view
 from tools.logger import get_logger
+from tools.audio import pcm_arr_to_wav_bytes
+
 import torch
 
 
@@ -55,6 +59,58 @@ class ChatTTSParams(BaseModel):
     params_refine_text: ChatTTS.Chat.RefineTextParams
     params_infer_code: ChatTTS.Chat.InferCodeParams
 
+@app.post("/generate_voice_stream")
+async def generate_voice(params: ChatTTSParams):
+    logger.info("Text input: %s", str(params.text))
+
+    # Audio seed
+    if params.params_infer_code.manual_seed is not None:
+        torch.manual_seed(params.params_infer_code.manual_seed)
+        params.params_infer_code.spk_emb = chat.sample_random_speaker()
+
+    # Text seed for text refining
+    if params.params_refine_text:
+        text = chat.infer(
+            text=params.text, skip_refine_text=False, refine_text_only=True
+        )
+        logger.info(f"Refined text: {text}")
+    else:
+        # No text refining
+        text = params.text
+
+    logger.info("Using speaker:")
+    logger.info(params.params_infer_code.spk_emb)
+
+    logger.info("Starting voice inference.")
+
+    # Assume chat.infer() is modified to be a generator that yields WAV data
+    wavs = chat.infer(
+        text=text,
+        stream=params.stream,
+        lang=params.lang,
+        skip_refine_text=params.skip_refine_text,
+        use_decoder=params.use_decoder,
+        do_text_normalization=params.do_text_normalization,
+        do_homophone_replacement=params.do_homophone_replacement,
+        params_infer_code=params.params_infer_code,
+        params_refine_text=params.params_refine_text,
+    )
+
+    # Generator function to process and yield WAV data
+    async def stream_wav():
+        idx = 0
+        async for wav in wavs:
+            logger.info(f"Processing WAV {idx}")
+            for i, w in enumerate(wav):
+                # Convert PCM array to WAV bytes
+                wav_bytes = pcm_arr_to_wav_bytes(w)
+                yield wav_bytes
+            idx += 1
+
+    logger.info("Inference started. Streaming WAV data to client.")
+
+    # Stream the WAV data using StreamingResponse
+    return StreamingResponse(stream_wav(), media_type="audio/wav")
 
 @app.post("/generate_voice")
 async def generate_voice(params: ChatTTSParams):
