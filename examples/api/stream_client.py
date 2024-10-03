@@ -100,4 +100,4 @@ if __name__ == "__main__":
         os.remove(output_wav)
 
     # Call the test function
-    test_generate_voice_streaming(API_URL, payload, output_wav)
+    test_generate_voice_streaming(API_URL, body, output_wav)
