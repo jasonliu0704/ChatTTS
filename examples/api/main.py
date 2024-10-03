@@ -21,7 +21,7 @@ import ChatTTS
 
 from tools.audio import pcm_arr_to_mp3_view
 from tools.logger import get_logger
-from tools.audio import pcm_arr_to_wav_bytes
+from tools.audio.pcm import pcm_arr_to_wav_bytes
 
 import torch
 
