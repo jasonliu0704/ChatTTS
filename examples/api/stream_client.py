@@ -7,21 +7,52 @@ API_URL = "http://0.0.0.0:8000/generate_voice_stream"  # Replace with your actua
 
 # Define the payload matching ChatTTSParams
 # Adjust the structure according to your actual ChatTTSParams model
-payload = {
-    "text": "Hello, this is a test of the text-to-speech streaming.",
-    "params_infer_code": {
-        "manual_seed": 42,  # Example seed value; set to None if not using
-        "spk_emb": None      # This will be set by the server if manual_seed is provided
-    },
-    "params_refine_text": True,
-    "stream": True,
-    "lang": "en",
-    "skip_refine_text": False,
+body = {
+    "text": [
+        "四川美食确实以辣闻名，但也有不辣的选择。",
+        "比如甜水面、赖汤圆、蛋烘糕、叶儿粑等，这些小吃口味温和，甜而不腻，也很受欢迎。",
+    ],
+    "stream": False,
+    "lang": None,
+    "skip_refine_text": True,
+    "refine_text_only": False,
     "use_decoder": True,
+    "audio_seed": 12345678,
+    "text_seed": 87654321,
     "do_text_normalization": True,
     "do_homophone_replacement": False,
-    # Add other necessary fields as per ChatTTSParams
 }
+
+# refine text params
+params_refine_text = {
+    "prompt": "",
+    "top_P": 0.7,
+    "top_K": 20,
+    "temperature": 0.7,
+    "repetition_penalty": 1,
+    "max_new_token": 384,
+    "min_new_token": 0,
+    "show_tqdm": True,
+    "ensure_non_empty": True,
+    "stream_batch": 24,
+}
+body["params_refine_text"] = params_refine_text
+
+# infer code params
+params_infer_code = {
+    "prompt": "[speed_5]",
+    "top_P": 0.1,
+    "top_K": 20,
+    "temperature": 0.3,
+    "repetition_penalty": 1.05,
+    "max_new_token": 2048,
+    "min_new_token": 0,
+    "show_tqdm": True,
+    "ensure_non_empty": True,
+    "stream_batch": True,
+    "spk_emb": None,
+}
+body["params_infer_code"] = params_infer_code
 
 def test_generate_voice_streaming(api_url, payload, output_file_path):
     """
@@ -34,7 +65,7 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
     """
     try:
         # Send the POST request with streaming enabled
-        with requests.post(api_url, json=payload, stream=True) as response:
+        with requests.post(api_url, json=body, stream=True) as response:
             response.raise_for_status()  # Raise an error for bad status codes
 
             # Check if the response is a WAV stream
