@@ -97,9 +97,9 @@ async def generate_voice(params: ChatTTSParams):
     )
 
     # Generator function to process and yield WAV data
-    async def stream_wav():
+    def stream_wav():
         idx = 0
-        async for wav in wavs:
+        for wav in wavs:
             logger.info(f"Processing WAV {idx}")
             for i, w in enumerate(wav):
                 # Convert PCM array to WAV bytes
