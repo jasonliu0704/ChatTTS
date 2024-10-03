@@ -82,6 +82,7 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
                 # Iterate over the response in chunks
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:  # Filter out keep-alive chunks
+                        print("Writing chunk...")
                         f.write(chunk)
 
             print(f"Streaming completed. WAV file saved as {output_file_path}.")
