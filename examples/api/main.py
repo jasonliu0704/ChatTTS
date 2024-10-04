@@ -103,7 +103,7 @@ async def generate_voice(params: ChatTTSParams):
             logger.info(f"Processing WAV {idx}")
             for i, w in enumerate(wav):
                 # Convert PCM array to WAV bytes
-                wav_bytes = pcm_arr_to_wav_bytes(w)
+                wav_bytes = pcm_arr_to_wav_bytes(w, bit_depth=-1)
                 yield wav_bytes
             idx += 1
 
@@ -161,3 +161,6 @@ async def generate_voice(params: ChatTTSParams):
     response = StreamingResponse(buf, media_type="application/zip")
     response.headers["Content-Disposition"] = "attachment; filename=audio_files.zip"
     return response
+
+
+# uvicorn  examples.api.main:app --host 0.0.0.0 --port 8001
