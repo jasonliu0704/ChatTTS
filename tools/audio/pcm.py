@@ -40,7 +40,7 @@ def pcm_arr_to_wav_bytes(
     - bytes: The WAV-formatted audio data.
     """
     # Validate bit depth
-    if bit_depth not in (8, 16, 24, 32):
+    if bit_depth not in (8, 16, 24, 32, -1):
         raise ValueError("Unsupported bit depth. Choose from 8, 16, 24, or 32 bits.")
 
     # Determine the appropriate WAV format
@@ -56,6 +56,9 @@ def pcm_arr_to_wav_bytes(
     elif bit_depth == 32:
         sampwidth = 4  # 4 bytes
         dtype = np.int32
+    elif bit_depth == -1:
+        sampwidth = 4
+        dtype = np.float32
 
     # Ensure PCM data is in the correct dtype
     if pcm_data.dtype != dtype:
