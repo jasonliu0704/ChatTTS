@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+from tools.audio import pcm_arr_to_mp3_view
 
 # Define the endpoint URL
 API_URL = "http://0.0.0.0:8001/generate_voice_stream"  # Replace with your actual server URL
@@ -76,14 +77,14 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
                 return
 
             # Open the output file in binary write mode
-            with open(output_file_path, 'wb') as f:
+            with open(output_file_path, 'a') as f:
                 print(f"Streaming WAV data to {output_file_path}...")
                 
                 # Iterate over the response in chunks
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:  # Filter out keep-alive chunks
                         print("Writing chunk...")
-                        f.write(chunk)
+                        f.write(pcm_arr_to_mp3_view(chunk))
 
             print(f"Streaming completed. WAV file saved as {output_file_path}.")
 

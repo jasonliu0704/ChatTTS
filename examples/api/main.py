@@ -60,7 +60,7 @@ class ChatTTSParams(BaseModel):
     params_infer_code: ChatTTS.Chat.InferCodeParams
 
 @app.post("/generate_voice_stream")
-async def generate_voice(params: ChatTTSParams):
+async def generate_voice_stream(params: ChatTTSParams):
     logger.info("Text input: %s", str(params.text))
 
     # Audio seed
