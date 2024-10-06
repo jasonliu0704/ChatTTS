@@ -3,7 +3,7 @@ import json
 import os
 
 # Define the endpoint URL
-API_URL = "http://0.0.0.0:8000/generate_voice_stream"  # Replace with your actual server URL
+API_URL = "http://0.0.0.0:8001/generate_voice_stream"  # Replace with your actual server URL
 
 # Define the payload matching ChatTTSParams
 # Adjust the structure according to your actual ChatTTSParams model
