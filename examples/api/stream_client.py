@@ -77,14 +77,10 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
                 return
 
             # Open the output file in binary write mode
-            with open(output_file_path, 'a') as f:
-                print(f"Streaming WAV data to {output_file_path}...")
-                
-                # Iterate over the response in chunks
+            with open('output.wav', 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:  # Filter out keep-alive chunks
-                        print("Writing chunk...")
-                        f.write(pcm_arr_to_mp3_view(chunk))
+                    if chunk:
+                        f.write(chunk)
 
             print(f"Streaming completed. WAV file saved as {output_file_path}.")
 

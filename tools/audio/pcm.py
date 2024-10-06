@@ -23,7 +23,7 @@ def pcm_arr_to_mp3_view(wav: np.ndarray):
 
 def pcm_arr_to_wav_bytes(
     pcm_data: np.ndarray,
-    sample_rate: int = 44100,
+    sample_rate: int = 24000,
     num_channels: int = 1,
     bit_depth: int = 16
 ) -> bytes:
