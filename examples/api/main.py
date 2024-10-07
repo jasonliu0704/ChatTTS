@@ -32,19 +32,20 @@ from pydantic import BaseModel
 logger = get_logger("Command")
 
 app = FastAPI()
+chat = ChatTTS.Chat(get_logger("ChatTTS"))
 
 
-@app.on_event("startup")
-async def startup_event():
-    global chat
+# @app.on_event("startup")
+# async def startup_event():
+#     global chat
 
-    chat = ChatTTS.Chat(get_logger("ChatTTS"))
-    logger.info("Initializing ChatTTS...")
-    if chat.load():
-        logger.info("Models loaded successfully.")
-    else:
-        logger.error("Models load failed.")
-        sys.exit(1)
+#     chat = ChatTTS.Chat(get_logger("ChatTTS"))
+#     logger.info("Initializing ChatTTS...")
+#     if chat.load():
+#         logger.info("Models loaded successfully.")
+#     else:
+#         logger.error("Models load failed.")
+#         sys.exit(1)
 
 
 class ChatTTSParams(BaseModel):
