@@ -70,7 +70,6 @@ class ChatTTSParams(BaseModel):
 
 
 app = FastAPI()
-import soundfile as sf
 
 @app.post("/generate_voice_stream")
 async def generate_voice_stream(params: ChatTTSParams):
@@ -92,40 +91,20 @@ async def generate_voice_stream(params: ChatTTSParams):
     )
     logger.info("Inference completed.")
 
-    def stream_wav():
-        idx = 0
-        for wav in wavs:
-            logger.info(f"Processing WAV {idx}")
-            for i, w in enumerate(wav):
-                # Convert PCM array to WAV bytes
-                buf = io.BytesIO()
+    # Assuming 'wavs' is a list of NumPy arrays representing audio data
+    # If you have multiple wavs, you can concatenate them
+    import numpy as np
+    combined_wav = np.concatenate(wavs)
 
-                # Write the WAV data to the buffer
-                sf.write(buf, w, samplerate=24000, format='WAV')
-                buf.seek(0)
-                data = buf.read()
-                yield data  # Yield the bytes data
-            idx += 1
+    # Convert the NumPy array to bytes in WAV format
+    buf = io.BytesIO()
+    import soundfile as sf
 
-            # Ensure 'wav' is a NumPy array with acceptable data type
-            # if not isinstance(wav, np.ndarray):
-            #     logger.error("Expected 'wav' to be a NumPy array.")
-            #     continue  # Skip this iteration if 'wav' is not an array
+    # Write the WAV data to the buffer
+    sf.write(buf, combined_wav, samplerate=24000, format='WAV')
+    buf.seek(0)
 
-            # # Convert to acceptable data type if necessary
-            # if wav.dtype not in [np.float32, np.float64, np.int16, np.int32]:
-            #     wav = wav.astype(np.float32)
-
-            # Assuming 'wavs' is a list of NumPy arrays representing audio data
-            # If you have multiple wavs, you can concatenate them
-            # import numpy as np
-            # combined_wav = np.concatenate(wavs)
-
-            # Convert the NumPy array to bytes in WAV format
-            
-
-
-    response = StreamingResponse(stream_wav(), media_type="audio/wav")
+    response = StreamingResponse(buf, media_type="audio/wav")
     response.headers["Content-Disposition"] = "attachment; filename=audio.wav"
     return response
 
