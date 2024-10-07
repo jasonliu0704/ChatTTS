@@ -95,6 +95,15 @@ async def generate_voice_stream(params: ChatTTSParams):
     def stream_wav():
         for wav in wavs:
 
+            # Ensure 'wav' is a NumPy array with acceptable data type
+            if not isinstance(wav, np.ndarray):
+                logger.error("Expected 'wav' to be a NumPy array.")
+                continue  # Skip this iteration if 'wav' is not an array
+
+            # Convert to acceptable data type if necessary
+            if wav.dtype not in [np.float32, np.float64, np.int16, np.int32]:
+                wav = wav.astype(np.float32)
+
             # Assuming 'wavs' is a list of NumPy arrays representing audio data
             # If you have multiple wavs, you can concatenate them
             # import numpy as np
@@ -104,9 +113,11 @@ async def generate_voice_stream(params: ChatTTSParams):
             buf = io.BytesIO()
 
             # Write the WAV data to the buffer
-            sf.write(buf, wav, samplerate=24000, format='WAV')
+            sf.write(buf, wav, samplerate=24000, format='WAV', subtype='PCM_16')
             buf.seek(0)
-            yield buf
+            data = buf.read()
+            yield data  # Yield the bytes data
+
 
     response = StreamingResponse(stream_wav(), media_type="audio/wav")
     response.headers["Content-Disposition"] = "attachment; filename=audio.wav"
