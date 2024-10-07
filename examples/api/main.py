@@ -70,6 +70,7 @@ class ChatTTSParams(BaseModel):
 
 
 app = FastAPI()
+import soundfile as sf
 
 @app.post("/generate_voice_stream")
 async def generate_voice_stream(params: ChatTTSParams):
@@ -91,20 +92,23 @@ async def generate_voice_stream(params: ChatTTSParams):
     )
     logger.info("Inference completed.")
 
-    # Assuming 'wavs' is a list of NumPy arrays representing audio data
-    # If you have multiple wavs, you can concatenate them
-    import numpy as np
-    combined_wav = np.concatenate(wavs)
+    def stream_wav():
+        for wav in wavs:
 
-    # Convert the NumPy array to bytes in WAV format
-    buf = io.BytesIO()
-    import soundfile as sf
+            # Assuming 'wavs' is a list of NumPy arrays representing audio data
+            # If you have multiple wavs, you can concatenate them
+            # import numpy as np
+            # combined_wav = np.concatenate(wavs)
 
-    # Write the WAV data to the buffer
-    sf.write(buf, combined_wav, samplerate=24000, format='WAV')
-    buf.seek(0)
+            # Convert the NumPy array to bytes in WAV format
+            buf = io.BytesIO()
 
-    response = StreamingResponse(buf, media_type="audio/wav")
+            # Write the WAV data to the buffer
+            sf.write(buf, wav, samplerate=24000, format='WAV')
+            buf.seek(0)
+            yield buf
+
+    response = StreamingResponse(stream_wav(), media_type="audio/wav")
     response.headers["Content-Disposition"] = "attachment; filename=audio.wav"
     return response
 
