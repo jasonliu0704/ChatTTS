@@ -41,7 +41,7 @@ if chat.load():
 else:
     logger.error("Models load failed.")
     sys.exit(1)
-logger.info("Done loading the chat")
+logger.info("Done loading ChatTTS")
 
 # @app.on_event("startup")
 # async def startup_event():
