@@ -63,7 +63,7 @@ class ChatTTSParams(BaseModel):
 app = FastAPI()
 
 @app.post("/generate_voice_stream")
-async def generate_voice(params: ChatTTSParams):
+async def generate_voice_stream(params: ChatTTSParams):
     logger.info("Text input: %s", str(params.text))
 
     # ... (Your existing code for inference and processing)
