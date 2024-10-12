@@ -79,6 +79,7 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
             # Open the output file in binary write mode
             with open('output.wav', 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
+                    print(f"len of chunk {len(chunk)}")
                     if chunk:
                         f.write(chunk)
 
