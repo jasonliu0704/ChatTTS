@@ -108,57 +108,58 @@ async def generate_voice_stream(params: ChatTTSParams):
     response.headers["Content-Disposition"] = "attachment; filename=audio.wav"
     return response
 
-# async def generate_voice_stream(params: ChatTTSParams):
-#     logger.info("Text input: %s", str(params.text))
+@app.post("/generate_voice_stream_live")
+async def generate_voice_stream_live(params: ChatTTSParams):
+    logger.info("Text input: %s", str(params.text))
 
-#     # Audio seed
-#     if params.params_infer_code.manual_seed is not None:
-#         torch.manual_seed(params.params_infer_code.manual_seed)
-#         params.params_infer_code.spk_emb = chat.sample_random_speaker()
+    # Audio seed
+    if params.params_infer_code.manual_seed is not None:
+        torch.manual_seed(params.params_infer_code.manual_seed)
+        params.params_infer_code.spk_emb = chat.sample_random_speaker()
 
-#     # Text seed for text refining
-#     if params.params_refine_text:
-#         text = chat.infer(
-#             text=params.text, skip_refine_text=False, refine_text_only=True
-#         )
-#         logger.info(f"Refined text: {text}")
-#     else:
-#         # No text refining
-#         text = params.text
+    # Text seed for text refining
+    if params.params_refine_text:
+        text = chat.infer(
+            text=params.text, skip_refine_text=False, refine_text_only=True
+        )
+        logger.info(f"Refined text: {text}")
+    else:
+        # No text refining
+        text = params.text
 
-#     logger.info("Using speaker:")
-#     logger.info(params.params_infer_code.spk_emb)
+    logger.info("Using speaker:")
+    logger.info(params.params_infer_code.spk_emb)
 
-#     logger.info("Starting voice inference.")
+    logger.info("Starting voice inference.")
 
-#     # Assume chat.infer() is modified to be a generator that yields WAV data
-#     wavs = chat.infer(
-#         text=text,
-#         stream=params.stream,
-#         lang=params.lang,
-#         skip_refine_text=params.skip_refine_text,
-#         use_decoder=params.use_decoder,
-#         do_text_normalization=params.do_text_normalization,
-#         do_homophone_replacement=params.do_homophone_replacement,
-#         params_infer_code=params.params_infer_code,
-#         params_refine_text=params.params_refine_text,
-#     )
+    # Assume chat.infer() is modified to be a generator that yields WAV data
+    wavs = chat.infer(
+        text=text,
+        stream=params.stream,
+        lang=params.lang,
+        skip_refine_text=params.skip_refine_text,
+        use_decoder=params.use_decoder,
+        do_text_normalization=params.do_text_normalization,
+        do_homophone_replacement=params.do_homophone_replacement,
+        params_infer_code=params.params_infer_code,
+        params_refine_text=params.params_refine_text,
+    )
 
-#     # Generator function to process and yield WAV data
-#     def stream_wav():
-#         idx = 0
-#         for wav in wavs:
-#             logger.info(f"Processing WAV {idx}")
-#             for i, w in enumerate(wav):
-#                 # Convert PCM array to WAV bytes
-#                 wav_bytes = pcm_arr_to_wav_bytes(w, bit_depth=-1)
-#                 yield wav_bytes
-#             idx += 1
+    # Generator function to process and yield WAV data
+    def stream_wav():
+        idx = 0
+        for wav in wavs:
+            logger.info(f"Processing WAV {idx}")
+            for i, w in enumerate(wav):
+                # Convert PCM array to WAV bytes
+                wav_bytes = pcm_arr_to_wav_bytes(w, bit_depth=-1)
+                yield wav_bytes
+            idx += 1
 
-#     logger.info("Inference started. Streaming WAV data to client.")
+    logger.info("Inference started. Streaming WAV data to client.")
 
-#     # Stream the WAV data using StreamingResponse
-#     return StreamingResponse(stream_wav(), media_type="audio/wav")
+    # Stream the WAV data using StreamingResponse
+    return StreamingResponse(stream_wav(), media_type="audio/wav")
 
 @app.post("/generate_voice")
 async def generate_voice(params: ChatTTSParams):
