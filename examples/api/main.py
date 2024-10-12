@@ -160,7 +160,7 @@ def pcm_arr_to_wav_bytes(
     subtype: str = 'PCM_16'
 ) -> bytes:
     # Create a BytesIO buffer to hold the WAV data
-    wav_buffer = BytesIO()
+    wav_buffer = io.BytesIO()
 
     # Write the PCM data to the buffer using soundfile
     sf.write(
