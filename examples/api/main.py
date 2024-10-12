@@ -7,6 +7,7 @@ import numpy as np
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+import soundfile as sf
 
 
 if sys.platform == "darwin":
@@ -108,50 +109,83 @@ async def generate_voice_stream(params: ChatTTSParams):
     response.headers["Content-Disposition"] = "attachment; filename=audio.wav"
     return response
 
-def pcm_arr_to_pcm_bytes(pcm_data: np.ndarray, bit_depth: int) -> bytes:
-    # Define the maximum and minimum amplitude based on bit depth
-    if bit_depth == 8:
-        dtype = np.uint8
-        max_amplitude = np.iinfo(np.uint8).max  # 255
-        min_amplitude = np.iinfo(np.uint8).min  # 0
-        # Scale floating-point data from [-1.0, 1.0] to [0, 255]
-        pcm_data = np.clip(pcm_data, -1.0, 1.0)
-        pcm_data = ((pcm_data + 1.0) * 127.5).astype(dtype)
-    else:
-        if bit_depth == 16:
-            dtype = np.int16
-            max_amplitude = np.iinfo(np.int16).max   # 32767
-            min_amplitude = np.iinfo(np.int16).min   # -32768
-        elif bit_depth == 24:
-            dtype = np.int32  # We'll handle 24-bit manually
-            max_amplitude = 8388607
-            min_amplitude = -8388608
-        elif bit_depth == 32:
-            dtype = np.int32
-            max_amplitude = np.iinfo(np.int32).max   # 2147483647
-            min_amplitude = np.iinfo(np.int32).min   # -2147483648
+# def pcm_arr_to_pcm_bytes(pcm_data: np.ndarray, bit_depth: int) -> bytes:
+#     # Define the maximum and minimum amplitude based on bit depth
+#     if bit_depth == 8:
+#         dtype = np.uint8
+#         max_amplitude = np.iinfo(np.uint8).max  # 255
+#         min_amplitude = np.iinfo(np.uint8).min  # 0
+#         # Scale floating-point data from [-1.0, 1.0] to [0, 255]
+#         pcm_data = np.clip(pcm_data, -1.0, 1.0)
+#         pcm_data = ((pcm_data + 1.0) * 127.5).astype(dtype)
+#     else:
+#         if bit_depth == 16:
+#             dtype = np.int16
+#             max_amplitude = np.iinfo(np.int16).max   # 32767
+#             min_amplitude = np.iinfo(np.int16).min   # -32768
+#         elif bit_depth == 24:
+#             dtype = np.int32  # We'll handle 24-bit manually
+#             max_amplitude = 8388607
+#             min_amplitude = -8388608
+#         elif bit_depth == 32:
+#             dtype = np.int32
+#             max_amplitude = np.iinfo(np.int32).max   # 2147483647
+#             min_amplitude = np.iinfo(np.int32).min   # -2147483648
 
-        # Clip floating-point data to [-1.0, 1.0]
-        pcm_data = np.clip(pcm_data, -1.0, 1.0)
+#         # Clip floating-point data to [-1.0, 1.0]
+#         pcm_data = np.clip(pcm_data, -1.0, 1.0)
 
-        # Scale to integer range
-        pcm_data = (pcm_data * max_amplitude).astype(dtype)
+#         # Scale to integer range
+#         pcm_data = (pcm_data * max_amplitude).astype(dtype)
 
-        # Clip integer PCM data to valid range [min_amplitude, max_amplitude]
-        pcm_data = np.clip(pcm_data, min_amplitude, max_amplitude)
+#         # Clip integer PCM data to valid range [min_amplitude, max_amplitude]
+#         pcm_data = np.clip(pcm_data, min_amplitude, max_amplitude)
 
-    # Handle 24-bit data separately
-    if bit_depth == 24:
-        pcm_bytes = bytearray()
-        for sample in pcm_data:
-            # Convert each sample to bytes and take the first 3 bytes (little endian)
-            sample_bytes = sample.to_bytes(4, byteorder='little', signed=True)
-            pcm_bytes.extend(sample_bytes[:3])  # Take the least significant 3 bytes
-        return bytes(pcm_bytes)
-    else:
-        return pcm_data.tobytes()
+#     # Handle 24-bit data separately
+#     if bit_depth == 24:
+#         pcm_bytes = bytearray()
+#         for sample in pcm_data:
+#             # Convert each sample to bytes and take the first 3 bytes (little endian)
+#             sample_bytes = sample.to_bytes(4, byteorder='little', signed=True)
+#             pcm_bytes.extend(sample_bytes[:3])  # Take the least significant 3 bytes
+#         return bytes(pcm_bytes)
+#     else:
+#         return pcm_data.tobytes()
 
 
+def pcm_arr_to_wav_bytes(
+    pcm_data: np.ndarray,
+    sample_rate: int = 24000,
+    num_channels: int = 1,
+    subtype: str = 'PCM_16'
+) -> bytes:
+    # Create a BytesIO buffer to hold the WAV data
+    wav_buffer = BytesIO()
+
+    # Write the PCM data to the buffer using soundfile
+    sf.write(
+        wav_buffer,
+        pcm_data,
+        sample_rate,
+        format='WAV',
+        subtype=subtype,
+        channels=num_channels
+    )
+
+    # Retrieve the WAV data from the buffer
+    wav_bytes = wav_buffer.getvalue()
+
+    # Modify the WAV header to set Subchunk2Size to 0xFFFFFFFF
+    # WAV header is 44 bytes for PCM formats
+    if len(wav_bytes) >= 44:
+        wav_bytes = bytearray(wav_bytes)
+        # Set Subchunk2Size (bytes 40-43) to 0xFFFFFFFF
+        wav_bytes[40:44] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
+        wav_bytes = bytes(wav_bytes)
+
+    wav_buffer.close()
+
+    return wav_bytes
 
 
 @app.post("/generate_voice_stream_live")
@@ -191,40 +225,42 @@ async def generate_voice_stream_live(params: ChatTTSParams):
         params_refine_text=params.params_refine_text,
     )
 
-    # Generator function to process and yield WAV data
     def stream_wav():
-      # Prepare the WAV header with a placeholder for data size
-        # Since we don't know the total size in advance, we'll set it to -1 (or 0xFFFFFFFF)
-        # Note: Some audio players may not handle this correctly
+        sample_rate = 24000
+        num_channels = 1
+        subtype = 'FLOAT'  # Adjust as needed ('PCM_16', 'PCM_24', 'FLOAT')
 
-        # Create a BytesIO buffer for the header
-        wav_header = io.BytesIO()
-        sample_rate = 24000  # Use appropriate sample rate
-        num_channels = 1     # Mono or stereo
-        bit_depth = 32       # Match with your PCM data after conversion
+        # Initialize a flag to indicate the first chunk
+        first_chunk = True
 
-        # Prepare parameters for the WAV header
-        sampwidth = bit_depth // 8
-        byte_rate = sample_rate * num_channels * sampwidth
-        block_align = num_channels * sampwidth
-
-        # Write the WAV header manually
-        with wave.open(wav_header, 'wb') as wav_file:
-            wav_file.setnchannels(num_channels)
-            wav_file.setsampwidth(sampwidth)
-            wav_file.setframerate(sample_rate)
-            # Since we can't set the data size, we'll proceed without writing frames
-
-        # Yield the WAV header once
-        yield wav_header.getvalue()
-
-        # Now stream the PCM data
         for wav in wavs:
-            logger.info(f"Processing WAV chunk")
             for w in wav:
-                # Convert PCM array to integer PCM data
-                pcm_bytes = pcm_arr_to_pcm_bytes(w, bit_depth=bit_depth)
-                yield pcm_bytes
+                # For the first chunk, include the WAV header
+                if first_chunk:
+                    wav_bytes = pcm_arr_to_wav_bytes(
+                        w,
+                        sample_rate=sample_rate,
+                        num_channels=num_channels,
+                        subtype=subtype
+                    )
+                    first_chunk = False
+                else:
+                    # For subsequent chunks, write PCM data without the header
+                    # Create a buffer to hold the PCM data
+                    pcm_buffer = io.BytesIO()
+                    sf.write(
+                        pcm_buffer,
+                        w,
+                        sample_rate,
+                        format='RAW',
+                        subtype=subtype,
+                        channels=num_channels
+                    )
+                    wav_bytes = pcm_buffer.getvalue()
+                    pcm_buffer.close()
+
+                yield wav_bytes
+
 
 
     logger.info("Inference started. Streaming WAV data to client.")
