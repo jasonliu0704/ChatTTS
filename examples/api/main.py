@@ -253,7 +253,6 @@ async def generate_voice_stream_live(params: ChatTTSParams):
                         sample_rate,
                         format='RAW',
                         subtype=subtype,
-                        channels=num_channels
                     )
                     wav_bytes = pcm_buffer.getvalue()
                     pcm_buffer.close()
