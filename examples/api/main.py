@@ -109,34 +109,49 @@ async def generate_voice_stream(params: ChatTTSParams):
     return response
 
 def pcm_arr_to_pcm_bytes(pcm_data: np.ndarray, bit_depth: int) -> bytes:
-    # Similar scaling as before
+    # Define the maximum and minimum amplitude based on bit depth
     if bit_depth == 8:
         dtype = np.uint8
-        max_amplitude = np.iinfo(np.uint8).max
-    elif bit_depth == 16:
-        dtype = np.int16
-        max_amplitude = np.iinfo(np.int16).max
-    elif bit_depth == 24:
-        dtype = np.int32
-        max_amplitude = 8388607
-    elif bit_depth == 32:
-        dtype = np.int32
-        max_amplitude = np.iinfo(np.int32).max
-
-    if np.issubdtype(pcm_data.dtype, np.floating):
+        max_amplitude = np.iinfo(np.uint8).max  # 255
+        min_amplitude = np.iinfo(np.uint8).min  # 0
+        # Scale floating-point data from [-1.0, 1.0] to [0, 255]
         pcm_data = np.clip(pcm_data, -1.0, 1.0)
-        pcm_data = (pcm_data * max_amplitude).astype(dtype)
+        pcm_data = ((pcm_data + 1.0) * 127.5).astype(dtype)
     else:
-        pcm_data = pcm_data.astype(dtype)
+        if bit_depth == 16:
+            dtype = np.int16
+            max_amplitude = np.iinfo(np.int16).max   # 32767
+            min_amplitude = np.iinfo(np.int16).min   # -32768
+        elif bit_depth == 24:
+            dtype = np.int32  # We'll handle 24-bit manually
+            max_amplitude = 8388607
+            min_amplitude = -8388608
+        elif bit_depth == 32:
+            dtype = np.int32
+            max_amplitude = np.iinfo(np.int32).max   # 2147483647
+            min_amplitude = np.iinfo(np.int32).min   # -2147483648
 
+        # Clip floating-point data to [-1.0, 1.0]
+        pcm_data = np.clip(pcm_data, -1.0, 1.0)
+
+        # Scale to integer range
+        pcm_data = (pcm_data * max_amplitude).astype(dtype)
+
+        # Clip integer PCM data to valid range [min_amplitude, max_amplitude]
+        pcm_data = np.clip(pcm_data, min_amplitude, max_amplitude)
+
+    # Handle 24-bit data separately
     if bit_depth == 24:
-        pcm_bytes = pcm_data.tobytes()
-        pcm_bytes_24 = bytearray()
-        for i in range(0, len(pcm_bytes), 4):
-            pcm_bytes_24.extend(pcm_bytes[i:i+3])
-        return bytes(pcm_bytes_24)
+        pcm_bytes = bytearray()
+        for sample in pcm_data:
+            # Convert each sample to bytes and take the first 3 bytes (little endian)
+            sample_bytes = sample.to_bytes(4, byteorder='little', signed=True)
+            pcm_bytes.extend(sample_bytes[:3])  # Take the least significant 3 bytes
+        return bytes(pcm_bytes)
     else:
         return pcm_data.tobytes()
+
+
 
 
 @app.post("/generate_voice_stream_live")
