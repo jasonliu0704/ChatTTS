@@ -169,7 +169,6 @@ def pcm_arr_to_wav_bytes(
         sample_rate,
         format='WAV',
         subtype=subtype,
-        channels=num_channels
     )
 
     # Retrieve the WAV data from the buffer
