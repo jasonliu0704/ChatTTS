@@ -108,6 +108,37 @@ async def generate_voice_stream(params: ChatTTSParams):
     response.headers["Content-Disposition"] = "attachment; filename=audio.wav"
     return response
 
+def pcm_arr_to_pcm_bytes(pcm_data: np.ndarray, bit_depth: int) -> bytes:
+    # Similar scaling as before
+    if bit_depth == 8:
+        dtype = np.uint8
+        max_amplitude = np.iinfo(np.uint8).max
+    elif bit_depth == 16:
+        dtype = np.int16
+        max_amplitude = np.iinfo(np.int16).max
+    elif bit_depth == 24:
+        dtype = np.int32
+        max_amplitude = 8388607
+    elif bit_depth == 32:
+        dtype = np.int32
+        max_amplitude = np.iinfo(np.int32).max
+
+    if np.issubdtype(pcm_data.dtype, np.floating):
+        pcm_data = np.clip(pcm_data, -1.0, 1.0)
+        pcm_data = (pcm_data * max_amplitude).astype(dtype)
+    else:
+        pcm_data = pcm_data.astype(dtype)
+
+    if bit_depth == 24:
+        pcm_bytes = pcm_data.tobytes()
+        pcm_bytes_24 = bytearray()
+        for i in range(0, len(pcm_bytes), 4):
+            pcm_bytes_24.extend(pcm_bytes[i:i+3])
+        return bytes(pcm_bytes_24)
+    else:
+        return pcm_data.tobytes()
+
+
 @app.post("/generate_voice_stream_live")
 async def generate_voice_stream_live(params: ChatTTSParams):
     logger.info("Text input: %s", str(params.text))
@@ -147,14 +178,39 @@ async def generate_voice_stream_live(params: ChatTTSParams):
 
     # Generator function to process and yield WAV data
     def stream_wav():
-        idx = 0
+      # Prepare the WAV header with a placeholder for data size
+        # Since we don't know the total size in advance, we'll set it to -1 (or 0xFFFFFFFF)
+        # Note: Some audio players may not handle this correctly
+
+        # Create a BytesIO buffer for the header
+        wav_header = io.BytesIO()
+        sample_rate = 24000  # Use appropriate sample rate
+        num_channels = 1     # Mono or stereo
+        bit_depth = 16       # Match with your PCM data after conversion
+
+        # Prepare parameters for the WAV header
+        sampwidth = bit_depth // 8
+        byte_rate = sample_rate * num_channels * sampwidth
+        block_align = num_channels * sampwidth
+
+        # Write the WAV header manually
+        with wave.open(wav_header, 'wb') as wav_file:
+            wav_file.setnchannels(num_channels)
+            wav_file.setsampwidth(sampwidth)
+            wav_file.setframerate(sample_rate)
+            # Since we can't set the data size, we'll proceed without writing frames
+
+        # Yield the WAV header once
+        yield wav_header.getvalue()
+
+        # Now stream the PCM data
         for wav in wavs:
-            logger.info(f"Processing WAV {idx}")
-            for i, w in enumerate(wav):
-                # Convert PCM array to WAV bytes
-                wav_bytes = pcm_arr_to_wav_bytes(w, bit_depth=-1)
-                yield wav_bytes
-            idx += 1
+            logger.info(f"Processing WAV chunk")
+            for w in wav:
+                # Convert PCM array to integer PCM data
+                pcm_bytes = pcm_arr_to_pcm_bytes(w, bit_depth=bit_depth)
+                yield pcm_bytes
+
 
     logger.info("Inference started. Streaming WAV data to client.")
 

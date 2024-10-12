@@ -56,30 +56,17 @@ params_infer_code = {
 body["params_infer_code"] = params_infer_code
 
 def test_generate_voice_streaming(api_url, payload, output_file_path):
-    """
-    Sends a POST request to the generate_voice endpoint and streams the WAV response to a file.
-
-    Parameters:
-    - api_url (str): The URL of the FastAPI endpoint.
-    - payload (dict): The JSON payload to send in the POST request.
-    - output_file_path (str): The path where the streamed WAV file will be saved.
-    """
     try:
-        # Send the POST request with streaming enabled
         with requests.post(api_url, json=body, stream=True) as response:
-            response.raise_for_status()  # Raise an error for bad status codes
-
-            # Check if the response is a WAV stream
+            response.raise_for_status()
             content_type = response.headers.get('Content-Type', '')
             if 'audio/wav' not in content_type:
                 print(f"Unexpected Content-Type: {content_type}")
                 print("Response Text:", response.text)
                 return
 
-            # Open the output file in binary write mode
-            with open('output.wav', 'wb') as f:
-                for chunk in response.iter_content(chunk_size=2092):
-                    print(f"len of chunk {len(chunk)}")
+            with open(output_file_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=4096):
                     if chunk:
                         f.write(chunk)
 
@@ -89,6 +76,7 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
         print(f"HTTP error occurred: {http_err}")  # HTTP error
     except Exception as err:
         print(f"An error occurred: {err}")          # Other errors
+
 
 if __name__ == "__main__":
     # Define the output file path
