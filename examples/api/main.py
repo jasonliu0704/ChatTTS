@@ -123,11 +123,11 @@ def pcm_arr_to_pcm_bytes(pcm_data: np.ndarray, bit_depth: int) -> bytes:
         dtype = np.int32
         max_amplitude = np.iinfo(np.int32).max
 
-    # if np.issubdtype(pcm_data.dtype, np.floating):
-    #     pcm_data = np.clip(pcm_data, -1.0, 1.0)
-    #     pcm_data = (pcm_data * max_amplitude).astype(dtype)
-    # else:
-    pcm_data = pcm_data.astype(dtype)
+    if np.issubdtype(pcm_data.dtype, np.floating):
+        pcm_data = np.clip(pcm_data, -1.0, 1.0)
+        pcm_data = (pcm_data * max_amplitude).astype(dtype)
+    else:
+        pcm_data = pcm_data.astype(dtype)
 
     if bit_depth == 24:
         pcm_bytes = pcm_data.tobytes()
@@ -186,7 +186,7 @@ async def generate_voice_stream_live(params: ChatTTSParams):
         wav_header = io.BytesIO()
         sample_rate = 24000  # Use appropriate sample rate
         num_channels = 1     # Mono or stereo
-        bit_depth = 16       # Match with your PCM data after conversion
+        bit_depth = 32       # Match with your PCM data after conversion
 
         # Prepare parameters for the WAV header
         sampwidth = bit_depth // 8
