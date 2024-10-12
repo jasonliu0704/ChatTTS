@@ -80,7 +80,7 @@ async def generate_voice_stream(params: ChatTTSParams):
     logger.info("Start voice inference.")
     wavs = chat.infer(
         text=params.text,
-        stream=False ,#params.stream,
+        stream=False, #params.stream,
         lang=params.lang,
         skip_refine_text=params.skip_refine_text,
         use_decoder=params.use_decoder,
