@@ -153,27 +153,74 @@ async def generate_voice_stream(params: ChatTTSParams):
 #         return pcm_data.tobytes()
 
 
-def pcm_arr_to_ogg_bytes(
+def pcm_arr_to_wav_bytes(
     pcm_data: np.ndarray,
-    sample_rate: int = 24000
+    sample_rate: int = 24000,
+    num_channels: int = 1,
+    bit_depth: int = 16
 ) -> bytes:
-    # Create a BytesIO buffer
-    ogg_buffer = io.BytesIO()
+    # Validate bit depth
+    if bit_depth not in (8, 16, 24, 32):
+        raise ValueError("Unsupported bit depth. Choose from 8, 16, 24, or 32 bits.")
 
-    # Write the PCM data to the buffer in Ogg Vorbis format
-    sf.write(
-        ogg_buffer,
-        pcm_data,
-        sample_rate,
-        format='OGG',
-        subtype='VORBIS'
-    )
+    # Determine the appropriate WAV format
+    if bit_depth == 8:
+        sampwidth = 1  # 1 byte per sample
+        dtype = np.uint8  # Unsigned 8-bit
+        max_amplitude = np.iinfo(np.uint8).max  # 255
+        min_amplitude = np.iinfo(np.uint8).min  # 0
+    elif bit_depth == 16:
+        sampwidth = 2  # 2 bytes per sample
+        dtype = np.int16  # Signed 16-bit
+        max_amplitude = np.iinfo(np.int16).max  # 32767
+        min_amplitude = np.iinfo(np.int16).min  # -32768
+    elif bit_depth == 24:
+        sampwidth = 3  # 3 bytes per sample
+        dtype = np.int32  # Will handle manually
+        max_amplitude = 8388607
+        min_amplitude = -8388608
+    elif bit_depth == 32:
+        sampwidth = 4  # 4 bytes per sample
+        dtype = np.int32  # Signed 32-bit
+        max_amplitude = np.iinfo(np.int32).max  # 2147483647
+        min_amplitude = np.iinfo(np.int32).min  # -2147483648
 
-    # Retrieve the OGG data from the buffer
-    ogg_bytes = ogg_buffer.getvalue()
-    ogg_buffer.close()
+    # Clip floating-point data to [-1.0, 1.0]
+    pcm_data = np.clip(pcm_data, -1.0, 1.0)
 
-    return ogg_bytes
+    # Scale floating-point data to integer range
+    if bit_depth == 8:
+        pcm_data = ((pcm_data + 1.0) * 127.5).astype(dtype)
+    else:
+        pcm_data = (pcm_data * max_amplitude).astype(dtype)
+        pcm_data = np.clip(pcm_data, min_amplitude, max_amplitude)
+
+    # Ensure data is in little-endian byte order
+    if pcm_data.dtype.byteorder == '>':
+        pcm_data = pcm_data.byteswap().newbyteorder()
+
+    # Create a BytesIO buffer to hold the WAV data
+    wav_buffer = io.BytesIO()
+
+    with wave.open(wav_buffer, 'wb') as wav_file:
+        wav_file.setnchannels(num_channels)
+        wav_file.setsampwidth(sampwidth)
+        wav_file.setframerate(sample_rate)
+
+        if bit_depth == 24:
+            # Manually handle 24-bit data
+            pcm_bytes = bytearray()
+            for sample in pcm_data:
+                sample_bytes = sample.to_bytes(4, byteorder='little', signed=True)
+                pcm_bytes.extend(sample_bytes[:3])  # Take least significant 3 bytes
+            wav_file.writeframes(bytes(pcm_bytes))
+        else:
+            wav_file.writeframes(pcm_data.tobytes())
+
+    wav_bytes = wav_buffer.getvalue()
+    wav_buffer.close()
+
+    return wav_bytes
 
 
 
@@ -215,38 +262,26 @@ async def generate_voice_stream_live(params: ChatTTSParams):
     )
 
     def stream_wav():
-        sample_rate = 24000
+        sample_rate = 24000  # Ensure this matches your PCM data's sample rate
         num_channels = 1
-        subtype = 'VORBIS'  # Adjust as needed ('PCM_16', 'PCM_24', 'FLOAT')
+        bit_depth = 16  # Ensure this matches your PCM data's bit depth
 
-        # Initialize a flag to indicate the first chunk
-        first_chunk = True
+        # Prepare the WAV header
+        wav_header = pcm_arr_to_wav_bytes(
+            pcm_data=np.array([], dtype=np.float32),
+            sample_rate=sample_rate,
+            num_channels=num_channels,
+            bit_depth=bit_depth
+        )
+        # Yield the WAV header
+        yield wav_header
 
+        # Now stream the PCM data
         for wav in wavs:
             for w in wav:
-                # For the first chunk, include the WAV header
-                if first_chunk:
-                    wav_bytes = pcm_arr_to_ogg_bytes(
-                        w,
-                        sample_rate=sample_rate,
-    
-                    )
-                    first_chunk = False
-                else:
-                    # For subsequent chunks, write PCM data without the header
-                    # Create a buffer to hold the PCM data
-                    pcm_buffer = io.BytesIO()
-                    sf.write(
-                        pcm_buffer,
-                        w,
-                        sample_rate,
-                        format='OGG',
-                        subtype=subtype
-                    )
-                    wav_bytes = pcm_buffer.getvalue()
-                    pcm_buffer.close()
-
-                yield wav_bytes
+                # Convert PCM array to bytes
+                pcm_bytes = pcm_arr_to_wav_bytes(w, bit_depth=bit_depth)
+                yield pcm_bytes
 
 
 
