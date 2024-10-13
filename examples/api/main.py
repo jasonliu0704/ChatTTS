@@ -226,11 +226,10 @@ async def generate_voice_stream_live(params: ChatTTSParams):
             for w in wav:
                 # For the first chunk, include the WAV header
                 if first_chunk:
-                    wav_bytes = pcm_arr_to_wav_bytes(
+                    wav_bytes = pcm_arr_to_ogg_bytes(
                         w,
                         sample_rate=sample_rate,
-                        num_channels=num_channels,
-                        subtype=subtype
+    
                     )
                     first_chunk = False
                 else:
