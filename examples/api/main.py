@@ -153,38 +153,28 @@ async def generate_voice_stream(params: ChatTTSParams):
 #         return pcm_data.tobytes()
 
 
-def pcm_arr_to_wav_bytes(
+def pcm_arr_to_ogg_bytes(
     pcm_data: np.ndarray,
-    sample_rate: int = 24000,
-    num_channels: int = 1,
-    subtype: str = 'PCM_16'
+    sample_rate: int = 24000
 ) -> bytes:
-    # Create a BytesIO buffer to hold the WAV data
-    wav_buffer = io.BytesIO()
+    # Create a BytesIO buffer
+    ogg_buffer = io.BytesIO()
 
-    # Write the PCM data to the buffer using soundfile
+    # Write the PCM data to the buffer in Ogg Vorbis format
     sf.write(
-        wav_buffer,
+        ogg_buffer,
         pcm_data,
         sample_rate,
-        format='WAV',
-        subtype=subtype,
+        format='OGG',
+        subtype='VORBIS'
     )
 
-    # Retrieve the WAV data from the buffer
-    wav_bytes = wav_buffer.getvalue()
+    # Retrieve the OGG data from the buffer
+    ogg_bytes = ogg_buffer.getvalue()
+    ogg_buffer.close()
 
-    # Modify the WAV header to set Subchunk2Size to 0xFFFFFFFF
-    # WAV header is 44 bytes for PCM formats
-    if len(wav_bytes) >= 44:
-        wav_bytes = bytearray(wav_bytes)
-        # Set Subchunk2Size (bytes 40-43) to 0xFFFFFFFF
-        wav_bytes[40:44] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
-        wav_bytes = bytes(wav_bytes)
+    return ogg_bytes
 
-    wav_buffer.close()
-
-    return wav_bytes
 
 
 @app.post("/generate_voice_stream_live")
@@ -251,8 +241,8 @@ async def generate_voice_stream_live(params: ChatTTSParams):
                         pcm_buffer,
                         w,
                         sample_rate,
-                        format='RAW',
-                        subtype=subtype,
+                        format='OGG',
+                        subtype='VORBIS'
                     )
                     wav_bytes = pcm_buffer.getvalue()
                     pcm_buffer.close()
