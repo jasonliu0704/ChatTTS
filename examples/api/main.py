@@ -217,7 +217,7 @@ async def generate_voice_stream_live(params: ChatTTSParams):
     def stream_wav():
         sample_rate = 24000
         num_channels = 1
-        subtype = 'FLOAT'  # Adjust as needed ('PCM_16', 'PCM_24', 'FLOAT')
+        subtype = 'VORBIS'  # Adjust as needed ('PCM_16', 'PCM_24', 'FLOAT')
 
         # Initialize a flag to indicate the first chunk
         first_chunk = True
@@ -242,7 +242,7 @@ async def generate_voice_stream_live(params: ChatTTSParams):
                         w,
                         sample_rate,
                         format='OGG',
-                        subtype='VORBIS'
+                        subtype=subtype
                     )
                     wav_bytes = pcm_buffer.getvalue()
                     pcm_buffer.close()
