@@ -3,17 +3,22 @@ import json
 import os
 from tools.audio import pcm_arr_to_mp3_view
 
+from tools.audio import float_to_int16
+
+import requests
+import io
+import wave
+
 # Define the endpoint URL
-API_URL = "http://0.0.0.0:8001/generate_voice_stream_live"  # Replace with your actual server URL
+API_URL = "http://0.0.0.0:8001/generate_voice_chat_stream"  # Updated endpoint URL
 
 # Define the payload matching ChatTTSParams
-# Adjust the structure according to your actual ChatTTSParams model
 body = {
     "text": [
         "四川美食确实以辣闻名，但也有不辣的选择。",
         "比如甜水面、赖汤圆、蛋烘糕、叶儿粑等，这些小吃口味温和，甜而不腻，也很受欢迎。",
     ],
-    "stream": False,
+    "stream": True,  # Set to True to enable streaming
     "lang": None,
     "skip_refine_text": True,
     "refine_text_only": False,
@@ -57,18 +62,39 @@ body["params_infer_code"] = params_infer_code
 
 def test_generate_voice_streaming(api_url, payload, output_file_path):
     try:
-        with requests.post(api_url, json=body, stream=True) as response:
+        with requests.post(api_url, json=payload, stream=True) as response:
             response.raise_for_status()
             content_type = response.headers.get('Content-Type', '')
-            if 'audio/wav' not in content_type:
+            if 'audio/wav' not in content_type.lower():
                 print(f"Unexpected Content-Type: {content_type}")
                 print("Response Text:", response.text)
                 return
 
+            # Read the initial WAV header
+            header = response.raw.read(44)  # WAV header is 44 bytes
+            data_chunks = []
+
+            # Read the rest of the data
+            for chunk in response.iter_content(chunk_size=4096):
+                if chunk:
+                    data_chunks.append(chunk)
+
+            # Combine all data chunks
+            audio_data = b''.join(data_chunks)
+
+            # Calculate the correct data sizes
+            data_size = len(audio_data)
+            chunk_size = data_size + 36  # 36 bytes for header excluding 'RIFF' and 'WAVE' identifiers
+
+            # Reconstruct the WAV header with correct sizes
+            header = bytearray(header)
+            header[4:8] = chunk_size.to_bytes(4, 'little')       # ChunkSize
+            header[40:44] = data_size.to_bytes(4, 'little')      # Subchunk2Size
+
+            # Write the corrected WAV file
             with open(output_file_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=4096):
-                    if chunk:
-                        f.write(chunk)
+                f.write(header)
+                f.write(audio_data)
 
             print(f"Streaming completed. WAV file saved as {output_file_path}.")
 
@@ -76,6 +102,7 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
         print(f"HTTP error occurred: {http_err}")  # HTTP error
     except Exception as err:
         print(f"An error occurred: {err}")          # Other errors
+
 
 
 if __name__ == "__main__":
