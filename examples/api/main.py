@@ -153,16 +153,7 @@ async def generate_voice_stream(params: ChatTTSParams):
 #         return pcm_data.tobytes()
 
 
-import numpy as np
-import sys
-
-import numpy as np
-import sys
-
-import io
-import numpy as np
 import wave
-import sys
 
 def pcm_arr_to_wav_bytes(
     pcm_data: np.ndarray,
@@ -266,11 +257,17 @@ async def generate_voice_stream_live(params: ChatTTSParams):
         params_refine_text=params.params_refine_text,
     )
 
-    def stream_wav():
-        sample_rate = 24000  # Ensure this matches your PCM data's sample rate
-        num_channels = 1
-        bit_depth = 16  # Ensure this matches your PCM data's bit depth
+    # Prepare to save the audio to a file
+    output_file_path = 'output.wav'  # You can customize this path
+    sample_rate = 24000  # Ensure this matches your PCM data's sample rate
+    num_channels = 1
+    bit_depth = 16  # Ensure this matches your PCM data's bit depth
 
+    # Open the file for writing in binary mode
+    output_file = open(output_file_path, 'wb')
+
+    def stream_wav():
+        # Access output_file from the enclosing scope
         # Prepare the WAV header
         wav_header = pcm_arr_to_wav_bytes(
             pcm_data=np.array([], dtype=np.float32),
@@ -278,20 +275,37 @@ async def generate_voice_stream_live(params: ChatTTSParams):
             num_channels=num_channels,
             bit_depth=bit_depth
         )
-        # Yield the WAV header
+
+        # Write the WAV header to the file
+        output_file.write(wav_header)
+
+        # Yield the WAV header to the client
         yield wav_header
 
-        # Now stream the PCM data
-        for wav in wavs:
-            for w in wav:
-                # Convert PCM array to bytes (without header)
-                pcm_bytes = pcm_arr_to_pcm_bytes(w, bit_depth=bit_depth)
-                yield pcm_bytes
+        try:
+            # Now stream the PCM data
+            for wav in wavs:
+                for w in wav:
+                    # Ensure PCM data is within [-1.0, 1.0]
+                    w = np.clip(w, -1.0, 1.0)
+
+                    # Convert PCM array to bytes (without header)
+                    pcm_bytes = pcm_arr_to_pcm_bytes(w, bit_depth=bit_depth, num_channels=num_channels)
+
+                    # Write the PCM bytes to the file
+                    output_file.write(pcm_bytes)
+
+                    # Yield the PCM bytes to the client
+                    yield pcm_bytes
+        finally:
+            # Close the file when done
+            output_file.close()
 
     logger.info("Inference started. Streaming WAV data to client.")
 
     # Stream the WAV data using StreamingResponse
     return StreamingResponse(stream_wav(), media_type="audio/wav")
+
 
 
 @app.post("/generate_voice")

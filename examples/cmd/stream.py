@@ -209,4 +209,38 @@ if __name__ == "__main__":
         params_infer_code=params_infer_code,
     )
     # 先存放一部分，存的差不多了再播放，适合生成速度比较慢的cpu玩家使用
-    ChatStreamer().play(streamchat, wait=5)
+    # ChatStreamer().play(streamchat, wait=5)
+    cs = ChatStreamer()
+    # Set audio stream parameters
+
+    CHANNELS = 1  # Mono
+    RATE = 24000  # Sample rate
+    CHUNK = 1024  # Chunk size
+
+    first_prefill_size = 5 * RATE
+    prefill_bytes = b""
+    meet = False
+
+    # Open a WAV file for writing
+    import wave
+
+    with wave.open('stream_output.wav', 'wb') as wav_file:
+        # Set WAV file parameters
+        wav_file.setnchannels(CHANNELS)
+        wav_file.setsampwidth(2)  # 2 bytes for 16-bit audio
+        wav_file.setframerate(RATE)
+        
+        for i in cs.generate(streamchat, output_format="PCM16_byte"):
+            if not meet:
+                prefill_bytes += i
+                if len(prefill_bytes) > first_prefill_size:
+                    meet = True
+                    # Write the prefill bytes to the WAV file
+                    wav_file.writeframes(prefill_bytes)
+            else:
+                # Write the audio data to the WAV file
+                wav_file.writeframes(i)
+        
+        # In case 'meet' was never set to True
+        if not meet:
+            wav_file.writeframes(prefill_bytes)
