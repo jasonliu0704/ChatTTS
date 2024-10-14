@@ -290,7 +290,7 @@ async def generate_voice_stream_live(params: ChatTTSParams):
                     w = np.clip(w, -1.0, 1.0)
 
                     # Convert PCM array to bytes (without header)
-                    pcm_bytes = pcm_arr_to_pcm_bytes(w, bit_depth=bit_depth, num_channels=num_channels)
+                    pcm_bytes = pcm_arr_to_pcm_bytes(w, bit_depth=bit_depth)
 
                     # Write the PCM bytes to the file
                     output_file.write(pcm_bytes)
