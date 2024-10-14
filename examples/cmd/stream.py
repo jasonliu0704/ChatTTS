@@ -77,12 +77,20 @@ class ChatStreamer:
         history_stream_wav = None
         article_streamwavs = None
         for stream_wav in streamchat:
-            if stream_wav.size == 0:
-                print("empty stream_wav")
+            max_abs_values = 0
+            try:
+                # Assuming stream_wav is defined and contains audio data
+                max_abs_values = np.abs(stream_wav).max(axis=1)
+                # Proceed with further processing using max_abs_values
+                print("Maximum absolute values computed successfully:", max_abs_values)
+            except Exception as e:
+                # Handle any exceptions that might occur
+                print("Error occurred while computing maximum absolute values:", e)
+                # Optionally, handle the error or log it for debugging
                 continue
-            print(np.abs(stream_wav).max(axis=1))
+            
             n_texts = len(stream_wav)
-            n_valid_texts = (np.abs(stream_wav).max(axis=1) > 1e-6).sum()
+            n_valid_texts = (max_abs_values > 1e-6).sum()
             if n_valid_texts == 0:
                 continue
             else:
@@ -203,9 +211,7 @@ if __name__ == "__main__":
     # 获取ChatTTS 流式推理generator
     streamchat = chat.infer(
         [
-            "总结一下，AI Agent是大模型功能的扩展，让AI更接近于通用人工智能，也就是我们常说的AGI。",
-            "你太聪明啦。",
-            "举个例子，大模型可能可以写代码，但它不能独立完成一个完整的软件开发项目。这时候，AI Agent就根据大模型的智能，结合记忆和规划，一步步实现从需求分析到产品上线。",
+            "This is real shit hey hey hey",
         ],
         skip_refine_text=True,
         stream=True,
