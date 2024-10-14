@@ -37,7 +37,7 @@ app = FastAPI()
 logger.info("loading chat")
 chat = ChatTTS.Chat(get_logger("ChatTTS"))
 logger.info("Initializing ChatTTS...")
-if chat.load():
+if chat.load(compile=False):
     logger.info("Models loaded successfully.")
 else:
     logger.error("Models load failed.")
@@ -83,16 +83,22 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
     logger.info("Text input: %s", str(params.text))
     logger.info("Start voice inference.")
 
+    rand_spk = chat.sample_random_speaker()
+    params_infer_code = ChatTTS.Chat.InferCodeParams(
+        spk_emb=rand_spk,  # add sampled speaker
+        temperature=0.3,  # using custom temperature
+        top_P=0.7,  # top P decode
+        top_K=20,  # top K decode
+    )
+
     # Start the inference with streaming enabled
     streamchat = chat.infer(
         [
-            "总结一下，AI Agent是大模型功能的扩展，让AI更接近于通用人工智能，也就是我们常说的AGI。",
-            "你太聪明啦。",
-            "举个例子，大模型可能可以写代码，但它不能独立完成一个完整的软件开发项目。这时候，AI Agent就根据大模型的智能，结合记忆和规划，一步步实现从需求分析到产品上线。",
+            params.text
         ],
         skip_refine_text=True,
         stream=True,
-        params_infer_code=params.params_infer_code,
+        params_infer_code=params_infer_code,
     )
 
     # Set audio stream parameters
@@ -117,15 +123,15 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
         wav_header = wav_buffer.getvalue()
 
         # Modify the WAV header to indicate unknown data size
-        if len(wav_header) >= 44:
-            wav_header = bytearray(wav_header)
-            # Set 'ChunkSize' (bytes 4-7) to 0xFFFFFFFF
-            wav_header[4:8] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
-            # Set 'Subchunk2Size' (bytes 40-43) to 0xFFFFFFFF
-            wav_header[40:44] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
-            wav_header = bytes(wav_header)
-        else:
-            raise ValueError("Generated WAV header is too short.")
+        # if len(wav_header) >= 44:
+        #     wav_header = bytearray(wav_header)
+        #     # Set 'ChunkSize' (bytes 4-7) to 0xFFFFFFFF
+        #     wav_header[4:8] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
+        #     # Set 'Subchunk2Size' (bytes 40-43) to 0xFFFFFFFF
+        #     wav_header[40:44] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
+        #     wav_header = bytes(wav_header)
+        # else:
+        #     raise ValueError("Generated WAV header is too short.")
 
         # Yield the WAV header to the client
         yield wav_header
