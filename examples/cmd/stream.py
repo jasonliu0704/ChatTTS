@@ -88,7 +88,7 @@ class ChatStreamer:
                 print("Error occurred while computing maximum absolute values:", e)
                 # Optionally, handle the error or log it for debugging
                 continue
-            
+
             n_texts = len(stream_wav)
             n_valid_texts = (max_abs_values > 1e-6).sum()
             if n_valid_texts == 0:
@@ -105,6 +105,9 @@ class ChatStreamer:
                 # 数据量足够，执行写入操作
                 else:
                     history_stream_wav = None
+                    if stream_wav.size == 0:
+                        print("stream_wav size 0")
+                        continue
                     stream_wav = ChatStreamer.batch_stream_formatted(
                         stream_wav, output_format
                     )
