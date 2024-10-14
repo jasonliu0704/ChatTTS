@@ -77,6 +77,9 @@ class ChatStreamer:
         history_stream_wav = None
         article_streamwavs = None
         for stream_wav in streamchat:
+            if stream_wav.size == 0:  # Skip if stream_wav is empty
+                print("Warning: stream_wav is empty. Skipping.")
+                continue
             max_abs_values = 0
             try:
                 # Assuming stream_wav is defined and contains audio data
