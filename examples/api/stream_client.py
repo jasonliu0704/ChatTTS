@@ -6,8 +6,6 @@ from tools.audio import pcm_arr_to_mp3_view
 from tools.audio import float_to_int16
 
 import requests
-import io
-import wave
 
 # Define the endpoint URL
 API_URL = "http://0.0.0.0:8001/generate_voice_chat_stream"  # Updated endpoint URL
@@ -70,31 +68,52 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
                 print("Response Text:", response.text)
                 return
 
-            # Read the initial WAV header
-            header = response.raw.read(44)  # WAV header is 44 bytes
-            data_chunks = []
+            # Open the output file in binary write mode
+            with open(output_file_path, 'wb') as f:
+                # Initialize variables to keep track of the header and data
+                header = b''
+                data_size = 0
 
-            # Read the rest of the data
-            for chunk in response.iter_content(chunk_size=4096):
-                if chunk:
-                    data_chunks.append(chunk)
+                # Create an iterator for the response content
+                chunks = response.iter_content(chunk_size=4096)
 
-            # Combine all data chunks
-            audio_data = b''.join(data_chunks)
+                # Read the WAV header (44 bytes)
+                while len(header) < 44:
+                    try:
+                        chunk = next(chunks)
+                    except StopIteration:
+                        raise ValueError("Received incomplete WAV header.")
 
-            # Calculate the correct data sizes
-            data_size = len(audio_data)
+                    if chunk:
+                        header += chunk
+
+                # Split the header and the initial data
+                wav_header = header[:44]
+                remaining_header = header[44:]
+
+                # Write the header to the file
+                f.write(wav_header)
+
+                # Write any remaining data from the header chunk
+                if remaining_header:
+                    f.write(remaining_header)
+                    data_size += len(remaining_header)
+
+                # Write the rest of the audio data to the file as it is received
+                for chunk in chunks:
+                    if chunk:
+                        f.write(chunk)
+                        data_size += len(chunk)
+
+            # After writing all data, update the header with correct sizes
             chunk_size = data_size + 36  # 36 bytes for header excluding 'RIFF' and 'WAVE' identifiers
 
-            # Reconstruct the WAV header with correct sizes
-            header = bytearray(header)
-            header[4:8] = chunk_size.to_bytes(4, 'little')       # ChunkSize
-            header[40:44] = data_size.to_bytes(4, 'little')      # Subchunk2Size
-
-            # Write the corrected WAV file
-            with open(output_file_path, 'wb') as f:
-                f.write(header)
-                f.write(audio_data)
+            # Open the file in read-write binary mode to update the header
+            with open(output_file_path, 'r+b') as f:
+                f.seek(4)  # Move to ChunkSize position
+                f.write(chunk_size.to_bytes(4, 'little'))
+                f.seek(40)  # Move to Subchunk2Size position
+                f.write(data_size.to_bytes(4, 'little'))
 
             print(f"Streaming completed. WAV file saved as {output_file_path}.")
 
@@ -102,6 +121,7 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
         print(f"HTTP error occurred: {http_err}")  # HTTP error
     except Exception as err:
         print(f"An error occurred: {err}")          # Other errors
+
 
 
 
