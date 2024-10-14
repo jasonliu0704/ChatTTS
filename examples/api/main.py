@@ -5,7 +5,7 @@ import zipfile
 import wave
 import numpy as np
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.responses import StreamingResponse
 import soundfile as sf
 
@@ -91,72 +91,65 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
     #     top_K=20,  # top K decode
     # )
 
-    # Start the inference with streaming enabled
-    streamchat = chat.infer(
-            params.text,
-        skip_refine_text=True,
-        stream=True,
-        params_infer_code=params.params_infer_code,
+    rand_spk = chat.sample_random_speaker()
+    params_infer_code = ChatTTS.Chat.InferCodeParams(
+        spk_emb=rand_spk,  # add sampled speaker
+        temperature=0.3,  # using custom temperature
+        top_P=0.7,  # top P decode
+        top_K=20,  # top K decode
     )
 
+    # 获取ChatTTS 流式推理generator
+    streamchat = chat.infer(
+        [
+            "This is real shit hey hey hey",
+        ],
+        skip_refine_text=True,
+        stream=True,
+        params_infer_code=params_infer_code,
+    )
+    # 先存放一部分，存的差不多了再播放，适合生成速度比较慢的cpu玩家使用
+    # ChatStreamer().play(streamchat, wait=5)
+    cs = ChatStreamer()
     # Set audio stream parameters
-    CHANNELS = 1      # Mono
-    RATE = 24000      # Sample rate
-    SAMPLE_WIDTH = 2  # 2 bytes for 16-bit audio
 
-    def audio_stream():
-        cs = ChatStreamer()
-        first_prefill_size = 5 * RATE
-        prefill_bytes = b""
-        meet = False
+    CHANNELS = 1  # Mono
+    RATE = 24000  # Sample rate
+    CHUNK = 1024  # Chunk size
 
-        # Prepare the WAV header
-        wav_buffer = io.BytesIO()
-        with wave.open(wav_buffer, 'wb') as wav_file:
-            wav_file.setnchannels(CHANNELS)
-            wav_file.setsampwidth(SAMPLE_WIDTH)
-            wav_file.setframerate(RATE)
-            wav_file.writeframes(b'')
+    first_prefill_size = 5 * RATE
+    prefill_bytes = b""
+    meet = False
 
-        wav_header = wav_buffer.getvalue()
+    # Open a WAV file for writing
+    import wave
 
-        # Modify the WAV header to indicate unknown data size
-        if len(wav_header) >= 44:
-            wav_header = bytearray(wav_header)
-            # Set 'ChunkSize' (bytes 4-7) to 0xFFFFFFFF
-            wav_header[4:8] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
-            # Set 'Subchunk2Size' (bytes 40-43) to 0xFFFFFFFF
-            wav_header[40:44] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
-            wav_header = bytes(wav_header)
-        else:
-            raise ValueError("Generated WAV header is too short.")
-
-        # Yield the WAV header to the client
-        yield wav_header
-
-        # Stream the audio data
+    with wave.open('stream_output.wav', 'wb') as wav_file:
+        # Set WAV file parameters
+        wav_file.setnchannels(CHANNELS)
+        wav_file.setsampwidth(2)  # 2 bytes for 16-bit audio
+        wav_file.setframerate(RATE)
+        
         for i in cs.generate(streamchat, output_format="PCM16_byte"):
             if not meet:
                 prefill_bytes += i
-                if len(prefill_bytes) >= first_prefill_size:
+                if len(prefill_bytes) > first_prefill_size:
                     meet = True
-                    # Yield the prefill bytes to the client
-                    yield prefill_bytes
+                    # Write the prefill bytes to the WAV file
+                    wav_file.writeframes(prefill_bytes)
             else:
-                # Ensure 'i' is not empty before yielding
-                if i:
-                    yield i
-                else:
-                    print("Warning: Received empty chunk from cs.generate()")
-
+                # Write the audio data to the WAV file
+                wav_file.writeframes(i)
+        
         # In case 'meet' was never set to True
-        if not meet and prefill_bytes:
-            yield prefill_bytes
+        if not meet:
+            wav_file.writeframes(prefill_bytes)
 
     logger.info("Inference started. Streaming audio data to client.")
 
     # Return a StreamingResponse with the audio stream
-    return StreamingResponse(audio_stream(), media_type="audio/wav")
+    # return StreamingResponse(audio_stream(), media_type="audio/wav")
+    return Response(status_code=200)
 
 
 
