@@ -5,7 +5,7 @@ import zipfile
 import wave
 import numpy as np
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 import soundfile as sf
 
@@ -83,14 +83,6 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
     logger.info("Text input: %s", str(params.text))
     logger.info("Start voice inference.")
 
-    # rand_spk = chat.sample_random_speaker()
-    # params_infer_code = ChatTTS.Chat.InferCodeParams(
-    #     spk_emb=rand_spk,  # add sampled speaker
-    #     temperature=0.3,  # using custom temperature
-    #     top_P=0.7,  # top P decode
-    #     top_K=20,  # top K decode
-    # )
-
     rand_spk = chat.sample_random_speaker()
     params_infer_code = ChatTTS.Chat.InferCodeParams(
         spk_emb=rand_spk,  # add sampled speaker
@@ -116,6 +108,7 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
     CHANNELS = 1  # Mono
     RATE = 24000  # Sample rate
     CHUNK = 1024  # Chunk size
+    SAMPLE_WIDTH = 2
 
     first_prefill_size = 5 * RATE
     prefill_bytes = b""
@@ -124,32 +117,60 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
     # Open a WAV file for writing
     import wave
 
-    with wave.open('stream_output.wav', 'wb') as wav_file:
-        # Set WAV file parameters
-        wav_file.setnchannels(CHANNELS)
-        wav_file.setsampwidth(2)  # 2 bytes for 16-bit audio
-        wav_file.setframerate(RATE)
-        
+    def audio_stream():
+        cs = ChatStreamer()
+        first_prefill_size = 5 * RATE
+        prefill_bytes = b""
+        meet = False
+
+        # Prepare the WAV header
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, 'wb') as wav_file:
+            wav_file.setnchannels(CHANNELS)
+            wav_file.setsampwidth(SAMPLE_WIDTH)
+            wav_file.setframerate(RATE)
+            wav_file.writeframes(b'')
+
+        wav_header = wav_buffer.getvalue()
+
+        # Modify the WAV header to indicate unknown data size
+        # if len(wav_header) >= 44:
+        #     wav_header = bytearray(wav_header)
+        #     # Set 'ChunkSize' (bytes 4-7) to 0xFFFFFFFF
+        #     wav_header[4:8] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
+        #     # Set 'Subchunk2Size' (bytes 40-43) to 0xFFFFFFFF
+        #     wav_header[40:44] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
+        #     wav_header = bytes(wav_header)
+        # else:
+        #     raise ValueError("Generated WAV header is too short.")
+
+        # Yield the WAV header to the client
+        yield wav_header
+
+        # Stream the audio data
         for i in cs.generate(streamchat, output_format="PCM16_byte"):
             if not meet:
                 prefill_bytes += i
                 if len(prefill_bytes) > first_prefill_size:
                     meet = True
-                    # Write the prefill bytes to the WAV file
-                    wav_file.writeframes(prefill_bytes)
+                    # Yield the prefill bytes to the client
+                    yield prefill_bytes
             else:
-                # Write the audio data to the WAV file
-                wav_file.writeframes(i)
-        
+                # Ensure 'i' is not empty before yielding
+                yield i
+                # if i:
+                #     yield i
+                # else:
+                #     print("Warning: Received empty chunk from cs.generate()")
+
         # In case 'meet' was never set to True
-        if not meet:
-            wav_file.writeframes(prefill_bytes)
+        if not meet and prefill_bytes:
+            yield prefill_bytes
 
     logger.info("Inference started. Streaming audio data to client.")
 
     # Return a StreamingResponse with the audio stream
-    # return StreamingResponse(audio_stream(), media_type="audio/wav")
-    return Response(status_code=200)
+    return StreamingResponse(audio_stream(), media_type="audio/wav")
 
 
 
