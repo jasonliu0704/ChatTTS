@@ -13,8 +13,7 @@ API_URL = "http://0.0.0.0:8001/generate_voice_chat_stream"  # Updated endpoint U
 # Define the payload matching ChatTTSParams
 body = {
     "text": [
-        "四川美食确实以辣闻名，但也有不辣的选择。",
-        "比如甜水面、赖汤圆、蛋烘糕、叶儿粑等，这些小吃口味温和，甜而不腻，也很受欢迎。",
+        "This is real shit hey hey hey",
     ],
     "stream": True,  # Set to True to enable streaming
     "lang": None,
