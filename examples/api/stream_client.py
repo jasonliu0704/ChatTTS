@@ -80,7 +80,7 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
 
 if __name__ == "__main__":
     # Define the output file path
-    output_wav = "output.wav"
+    output_wav = "test_output.wav"
 
     # Optionally, remove the file if it already exists
     if os.path.exists(output_wav):
