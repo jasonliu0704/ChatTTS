@@ -83,13 +83,13 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
     logger.info("Text input: %s", str(params.text))
     logger.info("Start voice inference.")
 
-    rand_spk = chat.sample_random_speaker()
-    params_infer_code = ChatTTS.Chat.InferCodeParams(
-        spk_emb=rand_spk,  # add sampled speaker
-        temperature=0.3,  # using custom temperature
-        top_P=0.7,  # top P decode
-        top_K=20,  # top K decode
-    )
+    # rand_spk = chat.sample_random_speaker()
+    # params_infer_code = ChatTTS.Chat.InferCodeParams(
+    #     spk_emb=rand_spk,  # add sampled speaker
+    #     temperature=0.3,  # using custom temperature
+    #     top_P=0.7,  # top P decode
+    #     top_K=20,  # top K decode
+    # )
 
     # Start the inference with streaming enabled
     streamchat = chat.infer(
@@ -98,7 +98,7 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
         ],
         skip_refine_text=True,
         stream=True,
-        params_infer_code=params_infer_code,
+        params_infer_code=params.params_infer_code,
     )
 
     # Set audio stream parameters
