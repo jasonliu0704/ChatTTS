@@ -93,9 +93,7 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
 
     # 获取ChatTTS 流式推理generator
     streamchat = chat.infer(
-        [
-            "This is real shit hey hey hey",
-        ],
+        params.text,
         skip_refine_text=True,
         stream=True,
         params_infer_code=params_infer_code,
