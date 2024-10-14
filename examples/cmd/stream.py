@@ -77,6 +77,7 @@ class ChatStreamer:
         history_stream_wav = None
         article_streamwavs = None
         for stream_wav in streamchat:
+            print(f"stream_wav: {stream_wav}")
             print(np.abs(stream_wav).max(axis=1))
             n_texts = len(stream_wav)
             n_valid_texts = (np.abs(stream_wav).max(axis=1) > 1e-6).sum()
