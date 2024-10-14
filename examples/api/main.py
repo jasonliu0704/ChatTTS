@@ -102,7 +102,7 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
 
     def audio_stream():
         cs = ChatStreamer()
-        first_prefill_size = 5 * RATE * SAMPLE_WIDTH
+        first_prefill_size = 5 * RATE
         prefill_bytes = b""
         meet = False
 
@@ -139,8 +139,11 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
                     # Yield the prefill bytes to the client
                     yield prefill_bytes
             else:
-                # Yield the audio data to the client
-                yield i
+                # Ensure 'i' is not empty before yielding
+                if i:
+                    yield i
+                else:
+                    print("Warning: Received empty chunk from cs.generate()")
 
         # In case 'meet' was never set to True
         if not meet and prefill_bytes:
