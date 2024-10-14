@@ -77,7 +77,7 @@ class ChatStreamer:
         history_stream_wav = None
         article_streamwavs = None
         for stream_wav in streamchat:
-            if not stream_wav:
+            if stream_wav.size == 0:
                 print("empty stream_wav")
                 continue
             print(np.abs(stream_wav).max(axis=1))
