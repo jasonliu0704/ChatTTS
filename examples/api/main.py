@@ -93,9 +93,7 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
 
     # Start the inference with streaming enabled
     streamchat = chat.infer(
-        [
-            params.text
-        ],
+            params.text,
         skip_refine_text=True,
         stream=True,
         params_infer_code=params.params_infer_code,
@@ -123,15 +121,15 @@ async def generate_voice_chat_stream(params: ChatTTSParams):
         wav_header = wav_buffer.getvalue()
 
         # Modify the WAV header to indicate unknown data size
-        # if len(wav_header) >= 44:
-        #     wav_header = bytearray(wav_header)
-        #     # Set 'ChunkSize' (bytes 4-7) to 0xFFFFFFFF
-        #     wav_header[4:8] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
-        #     # Set 'Subchunk2Size' (bytes 40-43) to 0xFFFFFFFF
-        #     wav_header[40:44] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
-        #     wav_header = bytes(wav_header)
-        # else:
-        #     raise ValueError("Generated WAV header is too short.")
+        if len(wav_header) >= 44:
+            wav_header = bytearray(wav_header)
+            # Set 'ChunkSize' (bytes 4-7) to 0xFFFFFFFF
+            wav_header[4:8] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
+            # Set 'Subchunk2Size' (bytes 40-43) to 0xFFFFFFFF
+            wav_header[40:44] = (0xFFFFFFFF).to_bytes(4, byteorder='little')
+            wav_header = bytes(wav_header)
+        else:
+            raise ValueError("Generated WAV header is too short.")
 
         # Yield the WAV header to the client
         yield wav_header
