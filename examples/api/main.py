@@ -73,7 +73,6 @@ class ChatTTSParams(BaseModel):
 app = FastAPI()
 
 from ..cmd.stream import ChatStreamer
-from fastapi import FastAPI, StreamingResponse
 import io
 import wave
 
