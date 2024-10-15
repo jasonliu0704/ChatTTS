@@ -99,10 +99,17 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
                     data_size += len(remaining_header)
 
                 # Write the rest of the audio data to the file as it is received
+                chunk_counter = 0
                 for chunk in chunks:
                     if chunk:
                         f.write(chunk)
                         data_size += len(chunk)
+                        
+                        # Save each chunk to a separate file
+                        chunk_file_path = f"{output_file_path}_chunk_{chunk_counter}.wav"
+                        with open(chunk_file_path, 'wb') as chunk_file:
+                            chunk_file.write(chunk)
+                        chunk_counter += 1
 
             # After writing all data, update the header with correct sizes
             chunk_size = data_size + 36  # 36 bytes for header excluding 'RIFF' and 'WAVE' identifiers
