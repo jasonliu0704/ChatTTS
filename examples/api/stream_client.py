@@ -113,7 +113,7 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
                             chunk_file.setnchannels(1)  # Mono audio
                             chunk_file.setsampwidth(2)  # 2 bytes per sample (16-bit audio)
                             chunk_file.setframerate(16000)  # Assuming a sample rate of 16kHz
-                            chunk_file.writeframes((chunk * 32767).astype(np.int16).tobytes())
+                            chunk_file.writeframes(chunk)
                         chunk_counter += 1
 
             # After writing all data, update the header with correct sizes
