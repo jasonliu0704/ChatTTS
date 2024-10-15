@@ -112,7 +112,7 @@ def test_generate_voice_streaming(api_url, payload, output_file_path):
                         with wave.open(chunk_file_path, 'wb') as chunk_file:
                             chunk_file.setnchannels(1)  # Mono audio
                             chunk_file.setsampwidth(2)  # 2 bytes per sample (16-bit audio)
-                            chunk_file.setframerate(16000)  # Assuming a sample rate of 16kHz
+                            chunk_file.setframerate(24000)  # Assuming a sample rate of 16kHz
                             chunk_file.writeframes(chunk)
                         chunk_counter += 1
 
