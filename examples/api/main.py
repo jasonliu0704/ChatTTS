@@ -364,7 +364,7 @@ async def generate_voice_stream_live(params: ChatTTSParams):
     bit_depth = 16  # Ensure this matches your PCM data's bit depth
 
     # Open the file for writing in binary mode
-    output_file = open(output_file_path, 'wb')
+    # output_file = open(output_file_path, 'wb')
 
     def stream_wav():
         # Access output_file from the enclosing scope
@@ -377,29 +377,28 @@ async def generate_voice_stream_live(params: ChatTTSParams):
         )
 
         # Write the WAV header to the file
-        output_file.write(wav_header)
+        # output_file.write(wav_header)
 
         # Yield the WAV header to the client
         yield wav_header
 
-        try:
-            # Now stream the PCM data
-            for wav in wavs:
-                for w in wav:
-                    # Ensure PCM data is within [-1.0, 1.0]
-                    w = np.clip(w, -1.0, 1.0)
+        # Now stream the PCM data
+        for wav in wavs:
+            for w in wav:
+                # Ensure PCM data is within [-1.0, 1.0]
+                w = np.clip(w, -1.0, 1.0)
 
-                    # Convert PCM array to bytes (without header)
-                    pcm_bytes = pcm_arr_to_pcm_bytes(w, bit_depth=bit_depth)
+                # Convert PCM array to bytes (without header)
+                pcm_bytes = pcm_arr_to_pcm_bytes(w, bit_depth=bit_depth)
 
-                    # Write the PCM bytes to the file
-                    output_file.write(pcm_bytes)
+                # Write the PCM bytes to the file
+                # output_file.write(pcm_bytes)
 
-                    # Yield the PCM bytes to the client
-                    yield pcm_bytes
-        finally:
-            # Close the file when done
-            output_file.close()
+                # Yield the PCM bytes to the client
+                yield pcm_bytes
+        # finally:
+        #     # Close the file when done
+        #     output_file.close()
 
     logger.info("Inference started. Streaming WAV data to client.")
 
